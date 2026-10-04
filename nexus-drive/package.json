@@ -1,6 +1,6 @@
 {
   "name": "nexus-drive",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Enterprise Cloud Database Suite with Google Drive VFS",
   "main": "server.js",
   "bin": {
