@@ -36,8 +36,11 @@ function App() {
           <button className="btn" onClick={() => document.getElementById('docs').scrollIntoView({behavior: 'smooth'})}>
             Docs
           </button>
-          <button className="btn btn-accent" onClick={() => window.open('https://github.com/oscaralfredoperezlara/nexus-drive', '_blank')}>
+          <button className="btn btn-accent" onClick={() => window.open('https://github.com/oscarlaradev/LATENCE-WORLD', '_blank')}>
             GitHub
+          </button>
+          <button className="btn btn-accent" style={{ background: '#cb3837', color: 'white', borderColor: '#cb3837' }} onClick={() => window.open('https://www.npmjs.com/package/nexus-drive', '_blank')}>
+            NPM
           </button>
         </div>
       </nav>
