@@ -20,6 +20,7 @@ function App() {
   // Auth State
   const [isProtected, setIsProtected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingSecurity, setIsCheckingSecurity] = useState(true);
   const [apiKey, setApiKey] = useState(localStorage.getItem('nexus_api_key') || '');
   const [loginError, setLoginError] = useState('');
 
@@ -58,12 +59,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (status === 'active' && (!isProtected || isAuthenticated)) {
+    if (!isCheckingSecurity && status === 'active' && (!isProtected || isAuthenticated)) {
       if (activeTab === 'colecciones') fetchCollections();
       if (activeTab === 'almacenamiento') fetchStorageInfo();
       if (activeTab === 'configuracion' || activeTab === 'dashboard') fetchConfigInfo();
     }
-  }, [status, activeTab, isProtected, isAuthenticated]);
+  }, [status, activeTab, isProtected, isAuthenticated, isCheckingSecurity]);
 
   useEffect(() => {
     if (activeTab === 'colecciones' && activeCollection && (!isProtected || isAuthenticated)) {
@@ -86,6 +87,7 @@ function App() {
         } catch(e) {}
       }
     } catch (e) {}
+    setIsCheckingSecurity(false);
   };
 
   const handleLogin = async (e) => {
@@ -204,6 +206,14 @@ function App() {
       if (!collections.includes(name)) setCollections([...collections, name]);
     }
   };
+
+  if (isCheckingSecurity) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0a0a', color: '#64748b', fontFamily: 'Syncopate, sans-serif' }}>
+        INICIANDO ENTORNO SEGURO...
+      </div>
+    );
+  }
 
   if (isProtected && !isAuthenticated) {
     return (
