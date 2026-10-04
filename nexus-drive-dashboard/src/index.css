@@ -67,12 +67,14 @@ body {
 /* Layout */
 .dashboard-container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* Sidebar */
 .sidebar {
   width: 270px;
+  height: 100vh;
   background-color: rgba(10, 10, 10, 0.95);
   backdrop-filter: blur(12px);
   border-right: 1px solid var(--border);
@@ -81,6 +83,7 @@ body {
   flex-direction: column;
   position: relative;
   z-index: 20;
+  flex-shrink: 0;
 }
 
 .brand {

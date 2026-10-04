@@ -767,41 +767,41 @@ export default function App() {
                 </div>
                 <div style={{ 
                   display: 'flex', alignItems: 'center', justifyContent: 'space-around', 
-                  padding: '24px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px',
-                  fontFamily: 'var(--font-mono)', fontSize: '0.85rem' 
+                  padding: '24px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.82rem', border: '1px solid var(--border)'
                 }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ padding: '12px 18px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid var(--primary)', borderRadius: '8px', color: '#c7d2fe', fontWeight: 600 }}>
+                    <div style={{ padding: '12px 18px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: '#fff', fontWeight: 600 }}>
                       REST / Client Apps
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '6px' }}>CRUD Requests</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '6px' }}>CRUD Requests</div>
                   </div>
-                  <div style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>⇄ &lt;1ms ⇄</div>
+                  <div style={{ color: 'var(--accent)', fontWeight: 700 }}>⇄ &lt;1ms ⇄</div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ padding: '12px 18px', background: 'rgba(6, 182, 212, 0.15)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', color: '#a5f3fc', fontWeight: 600 }}>
+                    <div style={{ padding: '12px 18px', background: 'var(--accent-dim)', border: '1px solid var(--border-accent)', borderRadius: 'var(--radius-sm)', color: 'var(--accent)', fontWeight: 700 }}>
                       RAM VFS (L1 Cache)
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '6px' }}>In-Memory Operations</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '6px' }}>In-Memory Engine</div>
                   </div>
-                  <div style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>⇄ Async Sync ⇄</div>
+                  <div style={{ color: 'var(--accent)', fontWeight: 700 }}>⇄ Async Sync ⇄</div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ padding: '12px 18px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid var(--accent-emerald)', borderRadius: '8px', color: '#a7f3d0', fontWeight: 600 }}>
+                    <div style={{ padding: '12px 18px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: '#fff', fontWeight: 600 }}>
                       Google Drive (L2 Cloud)
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '6px' }}>Permanent JSON Storage</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '6px' }}>Permanent JSON Storage</div>
                   </div>
                 </div>
               </div>
 
-              {/* Live Audit Trail */}
+              {/* Live Audit Trail (Limitado a los 10 más recientes) */}
               <div className="card">
                 <div className="card-header">
                   <div className="card-title">
-                    <Activity size={18} color="var(--accent-emerald)" />
-                    Live Audit Trail (Registro de Operaciones en Vivo)
+                    <Activity size={16} color="var(--accent)" />
+                    Live Audit Trail (Últimas 10 Operaciones)
                   </div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {telemetry?.auditLogs?.length || 0} eventos registrados
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    Mostrando 10 más recientes (Total acumulado: {telemetry?.totalOperations || 0})
                   </span>
                 </div>
 
@@ -819,7 +819,7 @@ export default function App() {
                     </thead>
                     <tbody>
                       {telemetry?.auditLogs && telemetry.auditLogs.length > 0 ? (
-                        telemetry.auditLogs.map(log => (
+                        telemetry.auditLogs.slice(0, 10).map(log => (
                           <tr key={log.id}>
                             <td>
                               <span className={`method-badge method-${log.method.toLowerCase()}`}>
