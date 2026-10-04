@@ -208,9 +208,50 @@ async function getDriveStorageInfo() {
   }
 }
 
+/**
+ * Elimina el archivo de una colección en Google Drive
+ */
+async function deleteCollectionFromDrive(collectionName) {
+  try {
+    const drive = await initDriveApi();
+    const fileName = `nexus_db_${collectionName}.json`;
+    const fileId = await findFileByName(drive, fileName);
+    if (fileId) {
+      await drive.files.delete({ fileId });
+      console.log(`🗑️ [Drive] Archivo '${fileName}' eliminado de Google Drive.`);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error(`❌ [Drive Error] Fallo al eliminar '${collectionName}':`, error.message);
+    return false;
+  }
+}
+
+/**
+ * Lista todos los archivos de base de datos en Google Drive con metadatos
+ */
+async function listDriveDatabaseFiles() {
+  try {
+    const drive = await initDriveApi();
+    const res = await drive.files.list({
+      q: `name contains 'nexus_db_' and trashed=false`,
+      fields: 'files(id, name, size, modifiedTime, webViewLink)',
+      spaces: 'drive',
+    });
+    return res.data.files || [];
+  } catch (e) {
+    console.error("Error listando archivos de Drive:", e.message);
+    return [];
+  }
+}
+
 module.exports = {
   authorize,
   syncCollectionToDrive,
   restoreDatabaseFromDrive,
-  getDriveStorageInfo
+  getDriveStorageInfo,
+  deleteCollectionFromDrive,
+  listDriveDatabaseFiles
 };
+

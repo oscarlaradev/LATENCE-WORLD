@@ -1,7 +1,7 @@
 {
   "name": "nexus-drive",
-  "version": "1.0.10",
-  "description": "Servidor de Base de Datos Inmortal",
+  "version": "1.1.0",
+  "description": "Enterprise Cloud Database Suite with Google Drive VFS",
   "main": "server.js",
   "bin": {
     "nexus": "bin/nexus.js"
