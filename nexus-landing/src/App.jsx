@@ -131,7 +131,7 @@ function App() {
       {/* Documentation */}
       <section id="docs" className="section container">
         <div className="reveal" style={{ marginBottom: '4rem' }}>
-          <h2 className="display-text" style={{ fontSize: '4rem', textAlign: 'right' }}>
+          <h2 className="display-text" style={{ fontSize: '3.5rem', textAlign: 'right' }}>
             SYSTEM <span className="highlight">DOCUMENTATION</span>
           </h2>
         </div>
@@ -139,41 +139,56 @@ function App() {
         <div className="grid-2">
           <div>
             <div className="doc-section reveal">
-              <h3>REST API Contract</h3>
-              <p>Interact with your database from any language, frontend, or backend. The core runs locally or on your deployed server, acting as the bridge to Drive.</p>
+              <h3>REST API Contract v1.1.1</h3>
+              <p>Interact with your database from any language, frontend, or backend. The core runs locally or on your deployed server, acting as the high-speed bridge to Google Drive.</p>
               
               <div className="code-block" style={{ marginTop: '1rem' }}>
-                <div className="code-line"><span className="code-comment">// Fetch a collection</span></div>
-                <div className="code-line"><span className="code-command">GET /db/:collection</span></div>
+                <div className="code-line"><span className="code-comment">// Query with search, pagination & sort</span></div>
+                <div className="code-line"><span className="code-command">GET /db/:collection?search=query&amp;limit=25</span></div>
                 
                 <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Insert a document</span></div>
                 <div className="code-line"><span className="code-command">POST /db/:collection</span></div>
-                <div className="code-line"><span className="code-command">Content-Type: application/json</span></div>
+                <div className="code-line"><span className="code-command">Header: x-api-key: YOUR_KEY</span></div>
                 
-                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Update a document</span></div>
-                <div className="code-line"><span className="code-command">PUT /db/:collection/:id</span></div>
-                
-                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Delete a document</span></div>
-                <div className="code-line"><span className="code-command">DELETE /db/:collection/:id</span></div>
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Bulk batch insertion</span></div>
+                <div className="code-line"><span className="code-command">POST /db/:collection/batch</span></div>
+
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Dynamic schema analyzer</span></div>
+                <div className="code-line"><span className="code-command">GET /db/:collection/schema</span></div>
+
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Full snapshot backup</span></div>
+                <div className="code-line"><span className="code-command">GET /api/backup</span></div>
               </div>
             </div>
           </div>
           
           <div>
             <div className="doc-section reveal" id="install">
-              <h3>Bank-Grade Security</h3>
-              <p>When deploying to the cloud (like Render or Heroku), simply set the <code>NEXUS_PASSWORD</code> environment variable. The system will automatically engage a Basic Authentication shield, locking down both the visual Dashboard and all API endpoints instantly.</p>
+              <h3>Enterprise Security &amp; Master Key</h3>
+              <p>When deploying to the cloud (Render, Heroku, Docker, VPS), set the <code>NEXUS_PASSWORD</code> environment variable. NexusDrive automatically locks down the visual Control Plane and enforces authorization via the <code>x-api-key: YOUR_PASSWORD</code> HTTP header on all API endpoints.</p>
             </div>
 
             <div className="doc-section reveal">
               <h3>Ephemeral Cloud Hosting</h3>
-              <p>Deploy NexusDrive to volatile cloud environments with zero risk. Set <code>GOOGLE_TOKEN</code> in your host's environment variables to authenticate silently without a browser.</p>
+              <p>Deploy NexusDrive to volatile cloud environments with zero risk. Set <code>GOOGLE_TOKEN</code> in your host's environment variables to authenticate silently without a browser prompt.</p>
               <div className="code-block" style={{ padding: '1rem' }}>
                 <span className="code-comment">When the host inevitably restarts:</span><br/><br/>
                 <span style={{ color: 'var(--text-primary)' }}>1. NexusDrive boots</span><br/>
                 <span style={{ color: 'var(--text-primary)' }}>2. Queries Drive for existing schema</span><br/>
                 <span style={{ color: 'var(--text-primary)' }}>3. Rebuilds In-Memory RAM state</span><br/>
                 <span style={{ color: 'var(--accent)' }}>4. Zero Data Loss Achieved.</span>
+              </div>
+            </div>
+
+            <div className="doc-section reveal">
+              <h3>Official Ecosystem Links</h3>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                <button className="btn btn-accent" onClick={() => window.open('https://www.npmjs.com/package/nexus-drive', '_blank')}>
+                  NPM: nexus-drive
+                </button>
+                <button className="btn" onClick={() => window.open('https://github.com/oscarlaradev/LATENCE-WORLD', '_blank')}>
+                  GitHub: LATENCE-WORLD
+                </button>
               </div>
             </div>
           </div>
