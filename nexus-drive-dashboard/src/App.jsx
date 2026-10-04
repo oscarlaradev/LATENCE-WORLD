@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, LayoutDashboard, Settings, HardDrive, Trash2, Edit2, Plus, CloudCog } from 'lucide-react';
+import { Database, LayoutDashboard, Settings, HardDrive, Trash2, Edit2, Plus, CloudCog, Lock, ChevronRight } from 'lucide-react';
 import './index.css';
 
 const API_URL = '';
@@ -17,6 +17,12 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [status, setStatus] = useState('checking');
   
+  // Auth State
+  const [isProtected, setIsProtected] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('nexus_api_key') || '');
+  const [loginError, setLoginError] = useState('');
+
   // Data States
   const [collections, setCollections] = useState([]);
   const [activeCollection, setActiveCollection] = useState('');
@@ -31,25 +37,72 @@ function App() {
   const [currentId, setCurrentId] = useState(null);
   const [formData, setFormData] = useState('{\n  "clave": "valor"\n}');
 
+  // Custom Fetch to inject API Key
+  const apiFetch = async (endpoint, options = {}) => {
+    const headers = { ...options.headers };
+    if (apiKey) headers['x-api-key'] = apiKey;
+    const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    if (res.status === 401) {
+      setIsAuthenticated(false);
+      localStorage.removeItem('nexus_api_key');
+      throw new Error('No Autorizado');
+    }
+    return res;
+  };
+
   useEffect(() => {
+    checkSecurity();
     fetchGlobalStatus();
     const interval = setInterval(fetchGlobalStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (status === 'active') {
+    if (status === 'active' && (!isProtected || isAuthenticated)) {
       if (activeTab === 'colecciones') fetchCollections();
       if (activeTab === 'almacenamiento') fetchStorageInfo();
       if (activeTab === 'configuracion' || activeTab === 'dashboard') fetchConfigInfo();
     }
-  }, [status, activeTab]);
+  }, [status, activeTab, isProtected, isAuthenticated]);
 
   useEffect(() => {
-    if (activeTab === 'colecciones' && activeCollection) {
+    if (activeTab === 'colecciones' && activeCollection && (!isProtected || isAuthenticated)) {
       fetchRecords(activeCollection);
     }
-  }, [activeCollection, activeTab]);
+  }, [activeCollection, activeTab, isProtected, isAuthenticated]);
+
+  const checkSecurity = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/status`);
+      const data = await res.json();
+      setIsProtected(data.isProtected);
+      if (!data.isProtected) {
+        setIsAuthenticated(true);
+      } else if (apiKey) {
+        // Test key
+        try {
+          await apiFetch('/api/config');
+          setIsAuthenticated(true);
+        } catch(e) {}
+      }
+    } catch (e) {}
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    try {
+      const res = await fetch(`${API_URL}/api/config`, { headers: { 'x-api-key': apiKey } });
+      if (res.ok) {
+        setIsAuthenticated(true);
+        localStorage.setItem('nexus_api_key', apiKey);
+      } else {
+        setLoginError('Master Key incorrecta. Acceso denegado.');
+      }
+    } catch(e) {
+      setLoginError('Error de conexión.');
+    }
+  };
 
   const fetchGlobalStatus = async () => {
     try {
@@ -63,7 +116,7 @@ function App() {
 
   const fetchCollections = async () => {
     try {
-      const res = await fetch(`${API_URL}/db`);
+      const res = await apiFetch(`/db`);
       if (res.ok) {
         const data = await res.json();
         setCollections(data.collections || []);
@@ -77,7 +130,7 @@ function App() {
   const fetchRecords = async (col) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/db/${col}`);
+      const res = await apiFetch(`/db/${col}`);
       if (res.ok) {
         const data = await res.json();
         setRecords(data.data || []);
@@ -88,7 +141,7 @@ function App() {
 
   const fetchStorageInfo = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/storage`);
+      const res = await apiFetch(`/api/storage`);
       if (res.ok) {
         setStorageInfo(await res.json());
       }
@@ -97,17 +150,16 @@ function App() {
 
   const fetchConfigInfo = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/config`);
+      const res = await apiFetch(`/api/config`);
       if (res.ok) {
         setConfigInfo(await res.json());
       }
     } catch (e) {}
   };
 
-  // UI Handlers
   const handleDelete = async (id) => {
     if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
-    await fetch(`${API_URL}/db/${activeCollection}/${id}`, { method: 'DELETE' });
+    await apiFetch(`/db/${activeCollection}/${id}`, { method: 'DELETE' });
     fetchRecords(activeCollection);
   };
 
@@ -115,10 +167,10 @@ function App() {
     try {
       const parsedData = JSON.parse(formData);
       const url = isEditing 
-        ? `${API_URL}/db/${activeCollection}/${currentId}`
-        : `${API_URL}/db/${activeCollection}`;
+        ? `/db/${activeCollection}/${currentId}`
+        : `/db/${activeCollection}`;
         
-      await fetch(url, {
+      await apiFetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsedData)
@@ -153,17 +205,50 @@ function App() {
     }
   };
 
+  if (isProtected && !isAuthenticated) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--background)' }}>
+        <form onSubmit={handleLogin} style={{ 
+          background: 'var(--surface)', padding: '40px', borderRadius: '12px', 
+          border: '1px solid var(--border-color)', width: '400px', textAlign: 'center',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+        }}>
+          <Lock size={48} color="var(--primary)" style={{ margin: '0 auto 20px auto' }} />
+          <h2 style={{ marginBottom: '10px', fontFamily: 'Syncopate', fontWeight: 600 }}>SISTEMA PROTEGIDO</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '30px', fontSize: '14px' }}>
+            Esta instancia de NexusDrive requiere autenticación.
+          </p>
+          <input 
+            type="password" 
+            placeholder="Introduce la Master Key" 
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            style={{
+              width: '100%', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)',
+              background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', marginBottom: '20px',
+              outline: 'none', fontSize: '16px', textAlign: 'center'
+            }}
+          />
+          {loginError && <p style={{ color: '#ef4444', marginBottom: '20px', fontSize: '14px' }}>{loginError}</p>}
+          <button type="submit" className="btn-primary" style={{ width: '100%', padding: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
+            DESBLOQUEAR <ChevronRight size={18} />
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   const renderDashboard = () => (
     <div className="card">
       <h2>Resumen del Sistema</h2>
       <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-        <div style={{ padding: '20px', background: '#f1f5f9', borderRadius: '8px', flex: 1 }}>
+        <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '8px', flex: 1 }}>
           <h3 style={{ color: 'var(--text-muted)' }}>Colecciones</h3>
-          <p style={{ fontSize: '2rem', fontWeight: 600 }}>{configInfo?.totalCollections || 0}</p>
+          <p style={{ fontSize: '2.5rem', fontWeight: 600, color: 'var(--primary)' }}>{configInfo?.totalCollections || 0}</p>
         </div>
-        <div style={{ padding: '20px', background: '#f1f5f9', borderRadius: '8px', flex: 1 }}>
+        <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '8px', flex: 1 }}>
           <h3 style={{ color: 'var(--text-muted)' }}>Registros Totales</h3>
-          <p style={{ fontSize: '2rem', fontWeight: 600 }}>{configInfo?.totalRecords || 0}</p>
+          <p style={{ fontSize: '2.5rem', fontWeight: 600, color: 'var(--primary)' }}>{configInfo?.totalRecords || 0}</p>
         </div>
       </div>
     </div>
@@ -261,7 +346,7 @@ function App() {
               <span>Espacio Utilizado</span>
               <span>{formatBytes(used)} / {formatBytes(limit)}</span>
             </div>
-            <div style={{ width: '100%', height: '10px', background: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
+            <div style={{ width: '100%', height: '10px', background: '#333', borderRadius: '5px', overflow: 'hidden' }}>
               <div style={{ width: `${percentage}%`, height: '100%', background: 'var(--primary)' }}></div>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right' }}>
@@ -279,7 +364,7 @@ function App() {
       <div style={{ marginTop: '20px' }}>
         <p><strong>Estado del Core:</strong> {configInfo?.status}</p>
         <p><strong>Puerto HTTP:</strong> {configInfo?.port}</p>
-        <p><strong>Versión:</strong> 1.0.0 (Inmortal Edition)</p>
+        <p><strong>Versión:</strong> 1.0.2 (Immortal Edition)</p>
       </div>
     </div>
   );
@@ -305,6 +390,20 @@ function App() {
             <Settings size={20} /> Configuración
           </li>
         </ul>
+        {isProtected && (
+          <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '20px' }}>
+            <button 
+              className="btn-primary" 
+              style={{ width: '100%', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+              onClick={() => {
+                localStorage.removeItem('nexus_api_key');
+                setIsAuthenticated(false);
+              }}
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+        )}
       </aside>
 
       <main className="main-content">
@@ -316,7 +415,7 @@ function App() {
             {activeTab === 'configuracion' && 'Configuración de Sistema'}
           </h1>
           <div className={`status-badge ${status !== 'active' ? 'offline' : ''}`}>
-            {status === 'active' ? <><span style={{color: '#16a34a'}}>●</span> Conectado a Drive</> : 
+            {status === 'active' ? <><span style={{color: '#eab308'}}>●</span> Conectado a Drive</> : 
              status === 'starting' ? 'Restaurando Base de Datos...' : 'Servidor Local Caído'}
           </div>
         </div>
@@ -330,27 +429,29 @@ function App() {
       {showModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', 
-          justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', 
+          justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+          backdropFilter: 'blur(5px)'
         }}>
           <div style={{
-            background: 'white', padding: '30px', borderRadius: '12px', 
-            width: '500px', maxWidth: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+            background: 'var(--surface)', padding: '30px', borderRadius: '12px', 
+            width: '500px', maxWidth: '90%', border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }}>
             <h2 style={{ marginBottom: '20px' }}>{isEditing ? 'Editar' : 'Añadir'} Documento</h2>
-            <p style={{ fontSize: '12px', color: 'gray', marginBottom: '10px' }}>JSON válido requerido:</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>JSON válido requerido:</p>
             <textarea 
               value={formData}
               onChange={(e) => setFormData(e.target.value)}
               style={{
                 width: '100%', height: '200px', padding: '15px', 
-                fontFamily: 'monospace', borderRadius: '8px', border: '1px solid #ccc',
-                marginBottom: '20px', resize: 'vertical'
+                fontFamily: 'monospace', borderRadius: '8px', border: '1px solid var(--border-color)',
+                marginBottom: '20px', resize: 'vertical', background: 'rgba(0,0,0,0.2)', color: 'var(--text-primary)', outline: 'none'
               }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowModal(false)} style={{
-                padding: '10px 20px', borderRadius: '8px', border: '1px solid #ccc', background: 'white', cursor: 'pointer'
+                padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer'
               }}>Cancelar</button>
               <button onClick={handleSave} className="btn-primary">Guardar</button>
             </div>

@@ -9,23 +9,26 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Endpoints públicos
+app.get('/api/auth/status', (req, res) => {
+  res.json({ isProtected: !!process.env.NEXUS_PASSWORD });
+});
+
 // Sistema de Seguridad (Protección por Contraseña)
 app.use((req, res, next) => {
   const password = process.env.NEXUS_PASSWORD;
-  if (!password) return next(); // Si no hay contraseña configurada, acceso libre (modo local)
+  if (!password) return next(); // Acceso libre
 
-  // Excluir la ruta health para los chequeos de Render
-  if (req.path === '/health') return next();
+  // Excluir rutas públicas y health check
+  if (req.path === '/health' || req.path === '/api/auth/status') return next();
 
-  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-  const [login, pwd] = Buffer.from(b64auth, 'base64').toString().split(':');
+  const apiKey = req.headers['x-api-key'];
 
-  if (login && pwd === password) {
+  if (apiKey === password) {
     return next();
   }
 
-  res.set('WWW-Authenticate', 'Basic realm="NexusDrive Secure Area"');
-  res.status(401).send('Acceso Denegado: Se requiere contraseña.');
+  res.status(401).json({ error: 'Acceso Denegado: Contraseña inválida.' });
 });
 
 // Servir Dashboard (Frontend)
