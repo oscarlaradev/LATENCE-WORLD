@@ -143,3 +143,8 @@ function startServer() {
 }
 
 module.exports = { startServer };
+
+// Iniciar servidor si se ejecuta directamente (ej. Render o node server.js)
+if (require.main === module) {
+  startServer();
+}
