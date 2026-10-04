@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="neonGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2FF00" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Background (Optional, kept transparent for versatility) -->
+  <rect width="500" height="500" fill="transparent" />
+
+  <g transform="translate(100, 100)">
+    <!-- The "Drive" Base: A sleek isometric plane -->
+    <path d="M150 250 L20 180 L150 110 L280 180 Z" fill="none" stroke="#333333" stroke-width="4" stroke-linejoin="round"/>
+    
+    <!-- The "Nexus" N: Sharp, intersecting geometric pillars -->
+    <path d="M60 200 L60 80 L140 180 L140 60" fill="none" stroke="url(#neonGlow)" stroke-width="24" stroke-linecap="square" stroke-linejoin="miter" filter="url(#glow)"/>
+    
+    <!-- Central Node / Core -->
+    <circle cx="140" cy="60" r="12" fill="#E2FF00" />
+    <circle cx="60" cy="200" r="12" fill="#FFFFFF" />
+    
+    <!-- Minimalist Data Link -->
+    <line x1="140" y1="60" x2="240" y2="120" stroke="#E2FF00" stroke-width="4" stroke-dasharray="8 8" />
+    <circle cx="240" cy="120" r="6" fill="#333333" stroke="#E2FF00" stroke-width="3" />
+  </g>
+
+  <!-- Typography: Ultra Minimalist -->
+  <text x="250" y="420" font-family="'Syncopate', 'Inter', sans-serif" font-weight="700" font-size="32" fill="#FFFFFF" letter-spacing="8" text-anchor="middle">NEXUS</text>
+  <text x="250" y="455" font-family="'Syncopate', 'Inter', sans-serif" font-weight="300" font-size="20" fill="#888888" letter-spacing="14" text-anchor="middle">DRIVE</text>
+</svg>
