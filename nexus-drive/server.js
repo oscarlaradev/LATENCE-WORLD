@@ -9,6 +9,25 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Sistema de Seguridad (Protección por Contraseña)
+app.use((req, res, next) => {
+  const password = process.env.NEXUS_PASSWORD;
+  if (!password) return next(); // Si no hay contraseña configurada, acceso libre (modo local)
+
+  // Excluir la ruta health para los chequeos de Render
+  if (req.path === '/health') return next();
+
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, pwd] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+  if (login && pwd === password) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="NexusDrive Secure Area"');
+  res.status(401).send('Acceso Denegado: Se requiere contraseña.');
+});
+
 // Servir Dashboard (Frontend)
 app.use(express.static(path.join(__dirname, 'public')));
 
