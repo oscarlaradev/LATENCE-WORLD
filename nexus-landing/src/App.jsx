@@ -161,16 +161,13 @@ function App() {
           
           <div>
             <div className="doc-section reveal" id="install">
-              <h3>Authentication Flow</h3>
-              <p>On first boot, the system securely generates a localized OAuth token via a zero-touch browser handshake. Your API keys are kept strictly local in `~/.nexus-drive`.</p>
-              <button className="btn" style={{ width: '100%', marginBottom: '2rem' }}>
-                View Security Whitepaper
-              </button>
+              <h3>Bank-Grade Security</h3>
+              <p>When deploying to the cloud (like Render or Heroku), simply set the <code>NEXUS_PASSWORD</code> environment variable. The system will automatically engage a Basic Authentication shield, locking down both the visual Dashboard and all API endpoints instantly.</p>
             </div>
 
             <div className="doc-section reveal">
-              <h3>Ephemeral Hosting Guide</h3>
-              <p>Because the source of truth is Google Drive, you can deploy NexusDrive to volatile environments like Render, Railway, or Heroku Free Tiers.</p>
+              <h3>Ephemeral Cloud Hosting</h3>
+              <p>Deploy NexusDrive to volatile cloud environments with zero risk. Set <code>GOOGLE_TOKEN</code> in your host's environment variables to authenticate silently without a browser.</p>
               <div className="code-block" style={{ padding: '1rem' }}>
                 <span className="code-comment">When the host inevitably restarts:</span><br/><br/>
                 <span style={{ color: 'var(--text-primary)' }}>1. NexusDrive boots</span><br/>
