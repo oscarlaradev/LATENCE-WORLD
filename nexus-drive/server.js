@@ -14,25 +14,29 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ isProtected: !!process.env.NEXUS_PASSWORD });
 });
 
-// Servir Dashboard (Frontend) libremente para que cargue la pantalla de Login
+// Servir Dashboard (Frontend) libremente
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Sistema de Seguridad (Protección por Contraseña para la API)
-app.use((req, res, next) => {
+// Middleware de Seguridad (Solo aplicará a rutas protegidas)
+const requireAuth = (req, res, next) => {
   const password = process.env.NEXUS_PASSWORD;
-  if (!password) return next(); // Acceso libre
+  if (!password) return next(); // Acceso libre si no hay clave
 
-  // Excluir rutas públicas y health check
+  // Excluir rutas públicas explícitamente (por si acaso)
   if (req.path === '/health' || req.path === '/api/auth/status') return next();
 
   const apiKey = req.headers['x-api-key'];
-
   if (apiKey === password) {
     return next();
   }
 
   res.status(401).json({ error: 'Acceso Denegado: Contraseña inválida.' });
-});
+};
+
+// Aplicar seguridad SOLO a la base de datos y configuración
+app.use('/api/config', requireAuth);
+app.use('/api/storage', requireAuth);
+app.use('/db', requireAuth);
 
 // El Motor Local (Memoria Caché)
 let memoryStore = {
@@ -143,6 +147,11 @@ app.delete('/db/:collection/:id', (req, res) => {
   console.log(`[VFS Sync Triggered] Borrando registro en Drive para la colección: ${col}`);
 
   res.json({ message: 'Dato eliminado exitosamente' });
+});
+
+// Fallback para SPA (Single Page Application)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 function startServer() {
