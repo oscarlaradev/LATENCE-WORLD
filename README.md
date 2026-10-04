@@ -320,6 +320,15 @@ curl -X POST "http://localhost:3000/db/clientes" \
 
 ---
 
+## 💖 Support the Project & Donations
+
+NexusDrive is an open-source, independent initiative. Your contributions help support ongoing research, maintenance, and the development of upcoming enterprise adapters (PostgreSQL sync, Redis VFS, S3 multi-cloud backups):
+
+* ☕ **Donate via PayPal:** [https://www.paypal.com/donate/?business=aura.urbanidad%40gmail.com&no_recurring=0&item_name=Support+NexusDrive+Development&currency_code=USD](https://www.paypal.com/donate/?business=aura.urbanidad%40gmail.com&no_recurring=0&item_name=Support+NexusDrive+Development&currency_code=USD)
+* 📬 **PayPal Account / Contact:** `aura.urbanidad@gmail.com`
+
+---
+
 ## ⚖️ License
 Released under the **MIT License**. Created by **Oscar Perez** (2026).
 Feel free to contribute, open issues, or submit PRs on [GitHub](https://github.com/oscarlaradev/LATENCE-WORLD).

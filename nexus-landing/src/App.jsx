@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Terminal, Database, Shield, Zap, Cloud, ArrowRight, Code2 } from 'lucide-react';
+import { Terminal, Database, Shield, Zap, Cloud, ArrowRight, Code2, Heart } from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -32,15 +32,22 @@ function App() {
         <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '40px', height: '40px' }} />
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => document.getElementById('docs').scrollIntoView({behavior: 'smooth'})}>
             Docs
           </button>
-          <button className="btn btn-accent" onClick={() => window.open('https://github.com/oscarlaradev/LATENCE-WORLD', '_blank')}>
+          <button className="btn" onClick={() => window.open('https://github.com/oscarlaradev/LATENCE-WORLD', '_blank')}>
             GitHub
           </button>
-          <button className="btn btn-accent" style={{ background: '#cb3837', color: 'white', borderColor: '#cb3837' }} onClick={() => window.open('https://www.npmjs.com/package/nexus-drive', '_blank')}>
+          <button className="btn" style={{ background: '#cb3837', color: 'white', borderColor: '#cb3837' }} onClick={() => window.open('https://www.npmjs.com/package/nexus-drive', '_blank')}>
             NPM
+          </button>
+          <button 
+            className="btn btn-accent" 
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => window.open('https://www.paypal.com/donate/?business=aura.urbanidad%40gmail.com&no_recurring=0&item_name=Support+NexusDrive+Development&currency_code=USD', '_blank')}
+          >
+            <Heart size={15} fill="#050505" /> Donar
           </button>
         </div>
       </nav>
@@ -195,6 +202,57 @@ function App() {
         </div>
       </section>
 
+      {/* Donation / Support Section */}
+      <section id="donate" className="section container">
+        <div className="reveal" style={{ 
+          border: '1px solid var(--border)', 
+          background: 'rgba(255, 255, 255, 0.02)', 
+          padding: '4rem 3rem', 
+          borderRadius: '4px',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'var(--accent)' }}></div>
+          <div className="grid-2">
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontFamily: 'JetBrains Mono', fontSize: '0.85rem', marginBottom: '1rem', textTransform: 'uppercase' }}>
+                <Heart size={16} fill="var(--accent)" /> Apoya el Proyecto Open Source
+              </div>
+              <h2 className="display-text" style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>
+                IMPULSA EL FUTURO DE <span className="highlight">NEXUSDRIVE</span>
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '1.05rem', marginBottom: '1.5rem' }}>
+                NexusDrive es un proyecto independiente y de código abierto. Tus donaciones permiten mantener la infraestructura, costear horas de desarrollo y acelerar nuevas integraciones (Redis VFS adapter, replicación PostgreSQL, soporte S3 multi-cloud).
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono', fontSize: '0.85rem' }}>
+                Cuenta oficial de donaciones PayPal: <strong style={{ color: '#fff' }}>aura.urbanidad@gmail.com</strong>
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: '1.2rem' }}>
+              <button 
+                className="btn btn-accent" 
+                style={{ 
+                  padding: '1.2rem 2.5rem', 
+                  fontSize: '0.85rem', 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 30px rgba(226, 255, 0, 0.2)'
+                }}
+                onClick={() => window.open('https://www.paypal.com/donate/?business=aura.urbanidad%40gmail.com&no_recurring=0&item_name=Support+NexusDrive+Development&currency_code=USD', '_blank')}
+              >
+                <Heart size={18} fill="#050505" /> Donar con PayPal
+              </button>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontFamily: 'JetBrains Mono' }}>
+                Pago directo y seguro procesado por PayPal Inc.
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border)', padding: '3rem 0', textAlign: 'center' }}>
         <p style={{ color: 'var(--text-secondary)', fontFamily: 'Syncopate', fontSize: '0.8rem', textTransform: 'uppercase' }}>
@@ -206,3 +264,4 @@ function App() {
 }
 
 export default App;
+
