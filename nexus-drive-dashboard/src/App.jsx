@@ -223,7 +223,7 @@ function App() {
           border: '1px solid #333', width: '400px', textAlign: 'center',
           boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
         }}>
-          <Lock size={48} color="var(--primary)" style={{ margin: '0 auto 20px auto' }} />
+          <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '48px', height: '48px', margin: '0 auto 20px auto', display: 'block' }} />
           <h2 style={{ marginBottom: '10px', fontFamily: 'Syncopate, sans-serif', fontWeight: 600, color: 'white' }}>SISTEMA PROTEGIDO</h2>
           <p style={{ color: '#888', marginBottom: '30px', fontSize: '14px' }}>
             Esta instancia de NexusDrive requiere autenticación.
@@ -383,7 +383,7 @@ function App() {
     <div className="dashboard-container">
       <aside className="sidebar">
         <div className="brand">
-          <CloudCog className="brand-icon" size={28} />
+          <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '28px', height: '28px' }} />
           NexusDrive
         </div>
         <ul className="nav-menu">
@@ -401,13 +401,20 @@ function App() {
           </li>
         </ul>
         {isProtected && (
-          <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '20px' }}>
+          <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
             <button 
-              className="btn-primary" 
-              style={{ width: '100%', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+              style={{ 
+                width: '100%', background: 'transparent', border: '1px solid var(--border-color)', 
+                color: 'var(--text-muted)', padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
+                fontWeight: 500, transition: '0.2s'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
               onClick={() => {
                 localStorage.removeItem('nexus_api_key');
                 setIsAuthenticated(false);
+                window.location.reload();
               }}
             >
               Cerrar Sesión
