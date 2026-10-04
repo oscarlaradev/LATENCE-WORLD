@@ -207,15 +207,15 @@ function App() {
 
   if (isProtected && !isAuthenticated) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--background)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0a0a' }}>
         <form onSubmit={handleLogin} style={{ 
-          background: 'var(--surface)', padding: '40px', borderRadius: '12px', 
-          border: '1px solid var(--border-color)', width: '400px', textAlign: 'center',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+          background: '#121212', padding: '40px', borderRadius: '12px', 
+          border: '1px solid #333', width: '400px', textAlign: 'center',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
         }}>
           <Lock size={48} color="var(--primary)" style={{ margin: '0 auto 20px auto' }} />
-          <h2 style={{ marginBottom: '10px', fontFamily: 'Syncopate', fontWeight: 600 }}>SISTEMA PROTEGIDO</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '30px', fontSize: '14px' }}>
+          <h2 style={{ marginBottom: '10px', fontFamily: 'Syncopate, sans-serif', fontWeight: 600, color: 'white' }}>SISTEMA PROTEGIDO</h2>
+          <p style={{ color: '#888', marginBottom: '30px', fontSize: '14px' }}>
             Esta instancia de NexusDrive requiere autenticación.
           </p>
           <input 
@@ -224,8 +224,8 @@ function App() {
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
             style={{
-              width: '100%', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)',
-              background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', marginBottom: '20px',
+              width: '100%', padding: '15px', borderRadius: '8px', border: '1px solid #333',
+              background: 'rgba(255,255,255,0.05)', color: 'white', marginBottom: '20px',
               outline: 'none', fontSize: '16px', textAlign: 'center'
             }}
           />
@@ -434,7 +434,7 @@ function App() {
           backdropFilter: 'blur(5px)'
         }}>
           <div style={{
-            background: 'var(--surface)', padding: '30px', borderRadius: '12px', 
+            background: 'var(--surface-color)', padding: '30px', borderRadius: '12px', 
             width: '500px', maxWidth: '90%', border: '1px solid var(--border-color)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }}>
@@ -446,12 +446,12 @@ function App() {
               style={{
                 width: '100%', height: '200px', padding: '15px', 
                 fontFamily: 'monospace', borderRadius: '8px', border: '1px solid var(--border-color)',
-                marginBottom: '20px', resize: 'vertical', background: 'rgba(0,0,0,0.2)', color: 'var(--text-primary)', outline: 'none'
+                marginBottom: '20px', resize: 'vertical', background: '#f8fafc', color: 'var(--text-main)', outline: 'none'
               }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowModal(false)} style={{
-                padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer'
+                padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', cursor: 'pointer'
               }}>Cancelar</button>
               <button onClick={handleSave} className="btn-primary">Guardar</button>
             </div>
