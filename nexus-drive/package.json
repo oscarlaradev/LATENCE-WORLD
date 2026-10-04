@@ -1,6 +1,6 @@
 {
   "name": "nexus-drive",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Servidor de Base de Datos Inmortal",
   "main": "server.js",
   "bin": {
