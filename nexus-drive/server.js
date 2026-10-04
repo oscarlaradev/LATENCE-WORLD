@@ -14,8 +14,23 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ isProtected: !!process.env.NEXUS_PASSWORD });
 });
 
+// Desactivar caché agresivo del navegador para que siempre lea el HTML más reciente
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path === '/index.html') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 // Servir Dashboard (Frontend) libremente
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Evitar que archivos faltantes del frontend devuelvan el index.html (Causa el error MIME)
+app.use('/assets', (req, res) => {
+  res.status(404).send('Asset no encontrado');
+});
 
 // Middleware de Seguridad (Solo aplicará a rutas protegidas)
 const requireAuth = (req, res, next) => {
