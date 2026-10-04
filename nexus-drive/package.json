@@ -1,0 +1,24 @@
+{
+  "name": "nexus-drive",
+  "version": "1.0.1",
+  "description": "Servidor de Base de Datos Inmortal",
+  "main": "server.js",
+  "bin": {
+    "nexus": "bin/nexus.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "commander": "^15.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "googleapis": "^183.0.0"
+  }
+}

@@ -1,0 +1,9 @@
+# Ignorar credenciales de Google
+token.json
+.env
+
+# Archivos de SO
+.DS_Store
+
+# Documentos
+*.log
