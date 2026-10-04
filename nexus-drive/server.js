@@ -14,7 +14,10 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ isProtected: !!process.env.NEXUS_PASSWORD });
 });
 
-// Sistema de Seguridad (Protección por Contraseña)
+// Servir Dashboard (Frontend) libremente para que cargue la pantalla de Login
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Sistema de Seguridad (Protección por Contraseña para la API)
 app.use((req, res, next) => {
   const password = process.env.NEXUS_PASSWORD;
   if (!password) return next(); // Acceso libre
@@ -30,9 +33,6 @@ app.use((req, res, next) => {
 
   res.status(401).json({ error: 'Acceso Denegado: Contraseña inválida.' });
 });
-
-// Servir Dashboard (Frontend)
-app.use(express.static(path.join(__dirname, 'public')));
 
 // El Motor Local (Memoria Caché)
 let memoryStore = {
