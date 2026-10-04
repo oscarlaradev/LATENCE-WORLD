@@ -24,6 +24,14 @@ async function ensureConfigDir() {
  * Lee el token de acceso previamente guardado si existe.
  */
 async function loadSavedCredentialsIfExist() {
+  if (process.env.GOOGLE_TOKEN) {
+    try {
+      return google.auth.fromJSON(JSON.parse(process.env.GOOGLE_TOKEN));
+    } catch (e) {
+      console.error("Error parsing GOOGLE_TOKEN from env variables", e);
+    }
+  }
+
   try {
     const content = await fs.readFile(TOKEN_PATH);
     const credentials = JSON.parse(content);
