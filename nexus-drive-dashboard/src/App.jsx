@@ -498,10 +498,10 @@ export default function App() {
   // RENDER CONDITIONAL: LOADING & LOGIN
   if (isCheckingSecurity) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#060911', color: '#94a3b8', gap: '16px' }}>
-        <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '54px', height: '54px', animation: 'pulse-ring 2s infinite ease-in-out' }} />
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', letterSpacing: '0.1em', color: '#6366f1' }}>
-          INITIALIZING ENTERPRISE VFS ENGINE...
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-color)', color: 'var(--text-secondary)', gap: '16px' }}>
+        <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '48px', height: '48px' }} />
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.8rem', letterSpacing: '2px', color: 'var(--accent)' }}>
+          INITIALIZING NEXUS VFS ENGINE...
         </div>
       </div>
     );
@@ -511,28 +511,29 @@ export default function App() {
     return (
       <div style={{ 
         display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', 
-        background: 'radial-gradient(ellipse at 50% 30%, rgba(99, 102, 241, 0.12) 0%, #060911 70%)' 
+        background: 'var(--bg-color)'
       }}>
         <form onSubmit={handleLogin} style={{ 
-          background: '#0c1220', padding: '44px', borderRadius: '18px', 
-          border: '1px solid rgba(255, 255, 255, 0.12)', width: '420px', textAlign: 'center',
-          boxShadow: '0 25px 70px rgba(0,0,0,0.8)'
+          background: 'var(--bg-surface)', padding: '40px', borderRadius: 'var(--radius-sm)', 
+          border: '1px solid var(--border)', width: '420px', textAlign: 'center',
+          boxShadow: '0 25px 70px rgba(0,0,0,0.9)', position: 'relative'
         }}>
-          <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '56px', height: '56px', margin: '0 auto 20px auto', display: 'block' }} />
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: '8px' }}>
-            NEXUS DRIVE CONTROL PLANE
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'var(--accent)' }}></div>
+          <img src="/logo.svg" alt="NexusDrive Logo" style={{ width: '50px', height: '50px', margin: '0 auto 18px auto', display: 'block' }} />
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '8px' }}>
+            NEXUS DRIVE
           </h2>
-          <p style={{ color: '#64748b', marginBottom: '28px', fontSize: '0.85rem' }}>
-            Instancia Empresarial Protegida por Clave Master
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '28px', fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}>
+            CONTROL PLANE // PROTECTED SYSTEM
           </p>
 
           <div style={{ textAlign: 'left', marginBottom: '18px' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <label style={{ fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Master Key / API Token
             </label>
             <input 
               type="password" 
-              placeholder="Ingresa NEXUS_PASSWORD" 
+              placeholder="NEXUS_PASSWORD" 
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               className="input-dark"
@@ -542,13 +543,13 @@ export default function App() {
           </div>
 
           {loginError && (
-            <div style={{ background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '10px', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '18px' }}>
+            <div style={{ background: 'var(--danger-dim)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', marginBottom: '18px', fontFamily: 'var(--font-mono)' }}>
               {loginError}
             </div>
           )}
 
-          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
-            Desbloquear Consola <ChevronRight size={18} />
+          <button type="submit" className="btn-accent" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
+            Desbloquear Consola <ChevronRight size={16} />
           </button>
         </form>
       </div>
@@ -691,8 +692,8 @@ export default function App() {
                   <button className="btn-secondary" onClick={() => { fetchConfigInfo(); fetchTelemetry(); }}>
                     <RefreshCw size={16} /> Refrescar
                   </button>
-                  <button className="btn-primary" onClick={() => setShowNewCollectionModal(true)}>
-                    <Plus size={16} /> Nueva Colección
+                  <button className="btn-accent" onClick={() => setShowNewCollectionModal(true)}>
+                    <Plus size={15} /> Nueva Colección
                   </button>
                 </div>
               </div>
@@ -871,12 +872,12 @@ export default function App() {
                   <button className="btn-secondary" onClick={() => setShowBatchModal(true)}>
                     <Upload size={15} /> Importar Batch
                   </button>
-                  <button className="btn-primary" onClick={() => {
+                  <button className="btn-accent" onClick={() => {
                     setIsEditingRecord(false);
                     setRecordFormData('{\n  "clave": "valor"\n}');
                     setShowRecordModal(true);
                   }}>
-                    <Plus size={16} /> Nuevo Registro
+                    <Plus size={15} /> Nuevo Registro
                   </button>
                 </div>
               </div>
@@ -1145,11 +1146,11 @@ export default function App() {
                     />
 
                     <button 
-                      className="btn-primary" 
+                      className="btn-accent" 
                       disabled={playgroundLoading}
                       onClick={handleExecutePlayground}
                     >
-                      <Play size={16} /> {playgroundLoading ? 'Ejecutando...' : 'Ejecutar'}
+                      <Play size={15} /> {playgroundLoading ? 'Ejecutando...' : 'Ejecutar'}
                     </button>
                   </div>
 
@@ -1285,8 +1286,8 @@ export default function App() {
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '20px' }}>
                     Descarga una copia instantánea e inmutable de toda la base de datos en formato JSON portable. Contiene todas las colecciones, registros e índices.
                   </p>
-                  <button className="btn-primary" onClick={handleDownloadBackup}>
-                    <Download size={16} /> Descargar Snapshot JSON
+                  <button className="btn-accent" onClick={handleDownloadBackup}>
+                    <Download size={15} /> Descargar Snapshot JSON
                   </button>
                 </div>
 
@@ -1478,7 +1479,7 @@ export default function App() {
                 <button type="button" className="btn-secondary" onClick={() => setShowRecordModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-accent">
                   {isEditingRecord ? 'Actualizar' : 'Insertar en Base de Datos'}
                 </button>
               </div>
@@ -1513,7 +1514,7 @@ export default function App() {
                 <button type="button" className="btn-secondary" onClick={() => setShowNewCollectionModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-accent">
                   Crear Colección
                 </button>
               </div>
@@ -1583,7 +1584,7 @@ export default function App() {
                 <button type="button" className="btn-secondary" onClick={() => setShowBatchModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-accent">
                   Importar Registros
                 </button>
               </div>
