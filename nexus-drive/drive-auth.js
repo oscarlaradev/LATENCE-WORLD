@@ -3,47 +3,36 @@ const path = require('path');
 const process = require('process');
 const {authenticate} = require('@google-cloud/local-auth');
 const {google} = require('googleapis');
-
-// Si modificas estos scopes, borra el archivo token.json.
-const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 const os = require('os');
 
-// Usamos el directorio home del usuario para que sea una herramienta global
+const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive.metadata'];
 const CONFIG_DIR = path.join(os.homedir(), '.nexus-drive');
 const TOKEN_PATH = path.join(CONFIG_DIR, 'token.json');
 const CREDENTIALS_PATH = path.join(CONFIG_DIR, 'credentials.json');
 
-// Asegurar que el directorio de configuración exista
 async function ensureConfigDir() {
   try {
     await fs.mkdir(CONFIG_DIR, { recursive: true });
   } catch (err) {}
 }
 
-/**
- * Lee el token de acceso previamente guardado si existe.
- */
 async function loadSavedCredentialsIfExist() {
   if (process.env.GOOGLE_TOKEN) {
     try {
       return google.auth.fromJSON(JSON.parse(process.env.GOOGLE_TOKEN));
     } catch (e) {
-      console.error("Error parsing GOOGLE_TOKEN from env variables", e);
+      console.error("Error parsing GOOGLE_TOKEN", e);
     }
   }
 
   try {
     const content = await fs.readFile(TOKEN_PATH);
-    const credentials = JSON.parse(content);
-    return google.auth.fromJSON(credentials);
+    return google.auth.fromJSON(JSON.parse(content));
   } catch (err) {
     return null;
   }
 }
 
-/**
- * Guarda las credenciales para futuros arranques del servidor.
- */
 async function saveCredentials(client) {
   const content = await fs.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
@@ -57,16 +46,11 @@ async function saveCredentials(client) {
   await fs.writeFile(TOKEN_PATH, payload);
 }
 
-/**
- * Autentica o carga el cliente.
- */
 async function authorize() {
   await ensureConfigDir();
   let client = await loadSavedCredentialsIfExist();
-  if (client) {
-    return client;
-  }
-  // Si no hay token, levanta un server local y abre el navegador para autorizar
+  if (client) return client;
+
   console.log("⚠️  Necesitamos autorización. Se abrirá una pestaña en tu navegador...");
   client = await authenticate({
     scopes: SCOPES,
@@ -78,37 +62,61 @@ async function authorize() {
   return client;
 }
 
-// Inicializar la API de Drive
 async function initDriveApi() {
   const authClient = await authorize();
   return google.drive({version: 'v3', auth: authClient});
 }
 
 /**
- * Busca un archivo en Drive por nombre (y que no esté en la papelera).
+ * Encuentra o crea una carpeta para una base de datos.
  */
-async function findFileByName(drive, name) {
+async function getOrCreateDatabaseFolder(drive, dbName) {
+  const folderName = `Nexus_DB_${dbName}`;
   const res = await drive.files.list({
-    q: `name='${name}' and trashed=false`,
+    q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id, name)',
     spaces: 'drive',
   });
+
   if (res.data.files.length > 0) {
     return res.data.files[0].id;
   }
-  return null;
+
+  // Create folder
+  const fileMetadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder'
+  };
+  const folder = await drive.files.create({
+    resource: fileMetadata,
+    fields: 'id'
+  });
+  console.log(`📁 Creada nueva carpeta de base de datos en Drive: ${folderName}`);
+  return folder.data.id;
 }
 
 /**
- * Sube o actualiza la colección en Drive.
+ * Busca un archivo dentro de una carpeta específica.
  */
-async function syncCollectionToDrive(collectionName, data) {
+async function findFileInFolder(drive, fileName, folderId) {
+  const res = await drive.files.list({
+    q: `name='${fileName}' and '${folderId}' in parents and trashed=false`,
+    fields: 'files(id, name)',
+    spaces: 'drive',
+  });
+  return res.data.files.length > 0 ? res.data.files[0].id : null;
+}
+
+/**
+ * Sube o actualiza la colección en Drive dentro de su base de datos.
+ */
+async function syncCollectionToDrive(dbName, collectionName, data) {
   try {
     const drive = await initDriveApi();
-    const fileName = `nexus_db_${collectionName}.json`;
+    const folderId = await getOrCreateDatabaseFolder(drive, dbName);
+    const fileName = `${collectionName}.json`;
     const fileContent = JSON.stringify(data, null, 2);
     
-    // Crear un stream de memoria para el contenido
     const { Readable } = require('stream');
     const stream = new Readable();
     stream.push(fileContent);
@@ -119,129 +127,124 @@ async function syncCollectionToDrive(collectionName, data) {
       body: stream,
     };
 
-    // Buscar si ya existe el archivo en Drive
-    const existingFileId = await findFileByName(drive, fileName);
+    const existingFileId = await findFileInFolder(drive, fileName, folderId);
 
     if (existingFileId) {
-      // Actualizar archivo existente
       await drive.files.update({
         fileId: existingFileId,
         media: media,
       });
-      console.log(`✅ [Drive Sync] Colección '${collectionName}' actualizada correctamente en Drive.`);
+      console.log(`✅ [Drive Sync] Colección '${dbName}/${collectionName}' actualizada.`);
     } else {
-      // Crear archivo nuevo
       await drive.files.create({
         requestBody: {
           name: fileName,
+          parents: [folderId],
           mimeType: 'application/json',
         },
         media: media,
         fields: 'id',
       });
-      console.log(`✨ [Drive Sync] Nueva colección '${collectionName}' creada en Drive.`);
+      console.log(`✨ [Drive Sync] Nueva colección '${dbName}/${collectionName}' creada.`);
     }
   } catch (error) {
-    console.error(`❌ [Drive Error] Fallo la sincronización:`, error.message);
+    console.error(`❌ [Drive Error] Fallo la sincronización de ${dbName}/${collectionName}:`, error.message);
   }
 }
 
 /**
- * Descarga todos los archivos que empiezan con "nexus_db_" y reconstruye la memoria.
+ * Restaura TODAS las bases de datos desde Google Drive a la memoria.
+ * Retorna: { dbName1: { col1: [], col2: [] }, dbName2: { ... } }
  */
 async function restoreDatabaseFromDrive() {
   const drive = await initDriveApi();
-  console.log(`📥 [VFS] Escaneando Drive en busca de bases de datos existentes...`);
+  console.log(`📥 [VFS] Escaneando Drive en busca de bases de datos existentes (carpetas Nexus_DB_*)...`);
   
-  const res = await drive.files.list({
-    q: `name contains 'nexus_db_' and trashed=false`,
+  // Buscar carpetas de bases de datos
+  const resFolders = await drive.files.list({
+    q: `name contains 'Nexus_DB_' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id, name)',
     spaces: 'drive',
   });
 
-  const files = res.data.files;
-  const collections = {};
+  const databases = {};
 
-  if (files.length === 0) {
-    console.log(`📥 [VFS] No se encontraron colecciones en Drive. Empezando de cero.`);
-    return collections;
+  if (resFolders.data.files.length === 0) {
+    console.log(`📥 [VFS] No se encontraron bases de datos en Drive. Empezando de cero.`);
+    return databases;
   }
 
-  for (const file of files) {
-    // Extraer el nombre de la colección: nexus_db_clientes.json -> clientes
-    const colName = file.name.replace('nexus_db_', '').replace('.json', '');
-    
-    try {
-      const result = await drive.files.get({
-        fileId: file.id,
-        alt: 'media'
-      }, { responseType: 'json' });
+  for (const folder of resFolders.data.files) {
+    const dbName = folder.name.replace('Nexus_DB_', '');
+    databases[dbName] = {};
 
-      // Si Google Drive ya nos parseó el JSON
-      collections[colName] = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-      console.log(`✅ [VFS] Colección restaurada: '${colName}' (${collections[colName].length} registros)`);
-    } catch (e) {
-      console.error(`❌ [VFS] Error al descargar la colección ${colName}:`, e.message);
+    // Buscar archivos .json dentro de la carpeta
+    const resFiles = await drive.files.list({
+      q: `'${folder.id}' in parents and mimeType='application/json' and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    for (const file of resFiles.data.files) {
+      const colName = file.name.replace('.json', '');
+      try {
+        const result = await drive.files.get({
+          fileId: file.id,
+          alt: 'media'
+        }, { responseType: 'json' });
+
+        databases[dbName][colName] = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+        console.log(`✅ [VFS] Colección restaurada: '${dbName}/${colName}' (${databases[dbName][colName].length} registros)`);
+      } catch (e) {
+        console.error(`❌ [VFS] Error al descargar '${dbName}/${colName}':`, e.message);
+      }
     }
   }
 
-  return collections;
+  return databases;
 }
 
-/**
- * Obtiene información real sobre el almacenamiento de Google Drive
- */
 async function getDriveStorageInfo() {
   try {
     const drive = await initDriveApi();
-    const res = await drive.about.get({
-      fields: 'storageQuota,user',
-    });
+    const res = await drive.about.get({ fields: 'storageQuota,user' });
     return {
       user: res.data.user.displayName,
       email: res.data.user.emailAddress,
       storageQuota: res.data.storageQuota
     };
   } catch (e) {
-    console.error("Error obteniendo info de almacenamiento:", e.message);
     return null;
   }
 }
 
-/**
- * Elimina el archivo de una colección en Google Drive
- */
-async function deleteCollectionFromDrive(collectionName) {
+async function deleteCollectionFromDrive(dbName, collectionName) {
   try {
     const drive = await initDriveApi();
-    const fileName = `nexus_db_${collectionName}.json`;
-    const fileId = await findFileByName(drive, fileName);
+    const folderId = await getOrCreateDatabaseFolder(drive, dbName);
+    const fileName = `${collectionName}.json`;
+    const fileId = await findFileInFolder(drive, fileName, folderId);
     if (fileId) {
       await drive.files.delete({ fileId });
-      console.log(`🗑️ [Drive] Archivo '${fileName}' eliminado de Google Drive.`);
+      console.log(`🗑️ [Drive] Colección '${dbName}/${collectionName}' eliminada.`);
       return true;
     }
     return false;
   } catch (error) {
-    console.error(`❌ [Drive Error] Fallo al eliminar '${collectionName}':`, error.message);
     return false;
   }
 }
 
-/**
- * Lista todos los archivos de base de datos en Google Drive con metadatos
- */
 async function listDriveDatabaseFiles() {
   try {
     const drive = await initDriveApi();
     const res = await drive.files.list({
-      q: `name contains 'nexus_db_' and trashed=false`,
-      fields: 'files(id, name, size, modifiedTime, webViewLink)',
+      q: `name contains 'Nexus_DB_' and trashed=false`,
+      fields: 'files(id, name, mimeType, webViewLink)',
       spaces: 'drive',
     });
     return res.data.files || [];
   } catch (e) {
-    console.error("Error listando archivos de Drive:", e.message);
     return [];
   }
 }
@@ -254,4 +257,3 @@ module.exports = {
   deleteCollectionFromDrive,
   listDriveDatabaseFiles
 };
-

@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const swaggerUi = require('swagger-ui-express');
+const yaml = require('yamljs');
+const { Server } = require('socket.io');
 const { 
   syncCollectionToDrive, 
   authorize, 
@@ -11,7 +15,35 @@ const {
 } = require('./drive-auth');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3000;
+
+// WebSockets (Tiempo Real)
+io.on('connection', (socket) => {
+  console.log('🔗 Cliente conectado:', socket.id);
+  
+  socket.on('subscribe', ({ database, collection }) => {
+    const room = `${database}:${collection}`;
+    socket.join(room);
+    console.log(`📡 Cliente ${socket.id} suscrito a ${room}`);
+  });
+
+  socket.on('unsubscribe', ({ database, collection }) => {
+    const room = `${database}:${collection}`;
+    socket.leave(room);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Cliente desconectado:', socket.id);
+  });
+});
+
+function notifyClients(database, collection, action, data) {
+  const room = `${database}:${collection}`;
+  io.to(room).emit('onSnapshot', { database, collection, action, data, timestamp: new Date().toISOString() });
+}
+
 const SERVER_START_TIME = Date.now();
 
 app.use(cors());
@@ -27,7 +59,6 @@ function pushAuditLog(log) {
   if (auditLogs.length > 100) auditLogs.pop();
 }
 
-// Middleware de Observabilidad (mide latencia y registra operaciones)
 app.use((req, res, next) => {
   const start = Date.now();
   const originalEnd = res.end;
@@ -35,8 +66,9 @@ app.use((req, res, next) => {
   res.end = function (...args) {
     const durationMs = Date.now() - start;
     if (req.path.startsWith('/db') || req.path.startsWith('/api')) {
-      const match = req.path.match(/^\/db\/([a-zA-Z0-9_-]+)/);
-      const collection = match ? match[1] : null;
+      const match = req.path.match(/^\/db\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
+      const database = match ? match[1] : null;
+      const collection = match ? match[2] : null;
       pushAuditLog({
         id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
         timestamp: new Date().toISOString(),
@@ -44,6 +76,7 @@ app.use((req, res, next) => {
         path: req.path,
         status: res.statusCode,
         durationMs,
+        database,
         collection,
         ip: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1'
       });
@@ -59,7 +92,15 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ isProtected: !!process.env.NEXUS_PASSWORD });
 });
 
-// Desactivar caché agresivo del navegador para que siempre lea el HTML más reciente
+// Swagger Docs Endpoint
+try {
+  const swaggerDocument = yaml.load(path.join(__dirname, 'swagger.yaml'));
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} catch (e) {
+  console.log("No se pudo cargar la documentación Swagger", e);
+}
+
+// Desactivar caché agresivo del navegador
 app.use((req, res, next) => {
   if (req.path === '/' || req.path === '/index.html') {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -71,19 +112,14 @@ app.use((req, res, next) => {
 
 // Servir Dashboard (Frontend) libremente
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Evitar que archivos faltantes del frontend devuelvan el index.html (Causa el error MIME)
-app.use('/assets', (req, res) => {
-  res.status(404).send('Asset no encontrado');
-});
+app.use('/assets', (req, res) => res.status(404).send('Asset no encontrado'));
 
 // Middleware de Seguridad (Solo aplicará a rutas protegidas)
 const requireAuth = (req, res, next) => {
   const password = process.env.NEXUS_PASSWORD;
-  if (!password) return next(); // Acceso libre si no hay clave
+  if (!password) return next();
 
-  // Excluir rutas públicas explícitamente
-  if (req.path === '/health' || req.path === '/api/auth/status') return next();
+  if (req.path === '/health' || req.path === '/api/auth/status' || req.path.startsWith('/docs')) return next();
 
   const apiKey = req.headers['x-api-key'];
   if (apiKey === password) {
@@ -93,20 +129,16 @@ const requireAuth = (req, res, next) => {
   res.status(401).json({ error: 'Acceso Denegado: Contraseña inválida.' });
 };
 
-// Aplicar seguridad a las APIs operacionales
 app.use('/api/config', requireAuth);
 app.use('/api/storage', requireAuth);
 app.use('/api/telemetry', requireAuth);
-app.use('/api/collections', requireAuth);
-app.use('/api/backup', requireAuth);
-app.use('/api/restore', requireAuth);
-app.use('/api/sync', requireAuth);
+app.use('/api', requireAuth); // Apply to /api/:database/...
 app.use('/db', requireAuth);
 
-// El Motor Local (Memoria RAM VFS)
+// El Motor Local (Memoria RAM VFS) - Arquitectura Multi-Tenant
 let memoryStore = {
   status: "starting",
-  collections: {}
+  databases: {}
 };
 
 app.get('/health', (req, res) => {
@@ -117,7 +149,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Telemetría & Observabilidad en Tiempo Real
 app.get('/api/telemetry', (req, res) => {
   const mem = process.memoryUsage();
   const uptimeSeconds = Math.floor((Date.now() - SERVER_START_TIME) / 1000);
@@ -140,7 +171,6 @@ app.get('/api/telemetry', (req, res) => {
   });
 });
 
-// Storage Drive Info & Cloud Files
 app.get('/api/storage', async (req, res) => {
   const info = await getDriveStorageInfo();
   res.json(info);
@@ -153,123 +183,128 @@ app.get('/api/storage/files', async (req, res) => {
 
 // Configuración general
 app.get('/api/config', (req, res) => {
-  const totalCollections = Object.keys(memoryStore.collections).length;
-  const totalRecords = Object.values(memoryStore.collections).reduce((acc, col) => acc + (Array.isArray(col) ? col.length : 0), 0);
+  const totalDatabases = Object.keys(memoryStore.databases).length;
+  let totalCollections = 0;
+  let totalRecords = 0;
+
+  for (const db in memoryStore.databases) {
+    totalCollections += Object.keys(memoryStore.databases[db]).length;
+    for (const col in memoryStore.databases[db]) {
+      totalRecords += memoryStore.databases[db][col].length;
+    }
+  }
+
   res.json({ 
     port: PORT, 
     status: memoryStore.status, 
+    totalDatabases,
     totalCollections, 
     totalRecords,
     isProtected: !!process.env.NEXUS_PASSWORD
   });
 });
 
+// Listar bases de datos
+app.get('/db', (req, res) => {
+  if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos, intenta en un momento." });
+  const databases = Object.keys(memoryStore.databases);
+  res.json({ databases });
+});
+
+// Listar colecciones de una base de datos
+app.get('/db/:database', (req, res) => {
+  if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos, intenta en un momento." });
+  const dbName = req.params.database;
+  if (!memoryStore.databases[dbName]) {
+    return res.status(404).json({ error: "Base de datos no encontrada." });
+  }
+  const collections = Object.keys(memoryStore.databases[dbName]);
+  res.json({ database: dbName, collections });
+});
+
 // Creación de Colecciones
-app.post('/api/collections', async (req, res) => {
+app.post('/api/:database/collections', async (req, res) => {
+  const dbName = req.params.database;
   const { name } = req.body;
   if (!name || typeof name !== 'string') {
     return res.status(400).json({ error: 'Nombre de colección inválido.' });
   }
   const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-  if (memoryStore.collections[cleanName]) {
-    return res.status(409).json({ error: `La colección '${cleanName}' ya existe.` });
+  
+  if (!memoryStore.databases[dbName]) {
+    memoryStore.databases[dbName] = {};
   }
 
-  memoryStore.collections[cleanName] = [];
-  await syncCollectionToDrive(cleanName, []);
-  res.status(201).json({ message: `Colección '${cleanName}' creada exitosamente.`, collection: cleanName });
+  if (memoryStore.databases[dbName][cleanName]) {
+    return res.status(409).json({ error: `La colección '${cleanName}' ya existe en '${dbName}'.` });
+  }
+
+  memoryStore.databases[dbName][cleanName] = [];
+  await syncCollectionToDrive(dbName, cleanName, []);
+  res.status(201).json({ message: `Colección creada exitosamente.`, database: dbName, collection: cleanName });
 });
 
-// Eliminación / Drop de Colección (Borra de RAM y de Google Drive)
-app.delete('/api/collections/:name', async (req, res) => {
-  const col = req.params.name;
-  if (!memoryStore.collections[col]) {
-    return res.status(404).json({ error: `Colección '${col}' no encontrada.` });
+// Eliminación / Drop de Colección
+app.delete('/api/:database/collections/:name', async (req, res) => {
+  const dbName = req.params.database;
+  const colName = req.params.name;
+  
+  if (!memoryStore.databases[dbName] || !memoryStore.databases[dbName][colName]) {
+    return res.status(404).json({ error: `Colección no encontrada.` });
   }
 
-  delete memoryStore.collections[col];
-  const driveDeleted = await deleteCollectionFromDrive(col);
+  delete memoryStore.databases[dbName][colName];
+  const driveDeleted = await deleteCollectionFromDrive(dbName, colName);
 
   res.json({ 
-    message: `Colección '${col}' eliminada de la memoria y ${driveDeleted ? 'de Google Drive' : 'no existía en Drive'}.`,
-    collection: col,
+    message: `Colección eliminada.`,
+    database: dbName,
+    collection: colName,
     driveDeleted 
   });
 });
 
 // Renombrar Colección
-app.post('/api/collections/:name/rename', async (req, res) => {
+app.post('/api/:database/collections/:name/rename', async (req, res) => {
+  const dbName = req.params.database;
   const oldName = req.params.name;
   const { newName } = req.body;
-  if (!newName || !memoryStore.collections[oldName]) {
+
+  if (!newName || !memoryStore.databases[dbName] || !memoryStore.databases[dbName][oldName]) {
     return res.status(400).json({ error: 'Parámetros inválidos o colección inexistente.' });
   }
 
   const cleanNewName = newName.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-  const data = memoryStore.collections[oldName];
-  delete memoryStore.collections[oldName];
-  memoryStore.collections[cleanNewName] = data;
+  const data = memoryStore.databases[dbName][oldName];
+  delete memoryStore.databases[dbName][oldName];
+  memoryStore.databases[dbName][cleanNewName] = data;
 
-  await syncCollectionToDrive(cleanNewName, data);
-  await deleteCollectionFromDrive(oldName);
+  await syncCollectionToDrive(dbName, cleanNewName, data);
+  await deleteCollectionFromDrive(dbName, oldName);
 
-  res.json({ message: `Colección renombrada de '${oldName}' a '${cleanNewName}'.`, collection: cleanNewName });
+  res.json({ message: `Colección renombrada.`, database: dbName, collection: cleanNewName });
 });
 
 // Exportar Base de Datos Completa (Snapshot Backup)
 app.get('/api/backup', (req, res) => {
   res.json({
-    version: "1.1.0",
-    engine: "NexusDrive Enterprise",
+    version: "2.0.0",
+    engine: "NexusDrive Enterprise Multi-Tenant",
     exportedAt: new Date().toISOString(),
-    collections: memoryStore.collections
+    databases: memoryStore.databases
   });
-});
-
-// Restaurar Base de Datos Completa desde Backup
-app.post('/api/restore', async (req, res) => {
-  const { collections } = req.body;
-  if (!collections || typeof collections !== 'object') {
-    return res.status(400).json({ error: 'Payload de restauración inválido.' });
-  }
-
-  memoryStore.collections = collections;
-  // Sincronizar todas las colecciones a Google Drive
-  for (const [colName, colData] of Object.entries(collections)) {
-    if (Array.isArray(colData)) {
-      await syncCollectionToDrive(colName, colData);
-    }
-  }
-
-  res.json({ 
-    message: 'Base de datos restaurada y sincronizada en Google Drive exitosamente.',
-    restoredCollections: Object.keys(collections)
-  });
-});
-
-// Forzar sincronización de todas las colecciones a Drive
-app.post('/api/sync/force', async (req, res) => {
-  try {
-    for (const [colName, colData] of Object.entries(memoryStore.collections)) {
-      await syncCollectionToDrive(colName, colData);
-    }
-    res.json({ message: 'Sincronización forzada completada con éxito.', timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(500).json({ error: 'Error durante la sincronización forzada.', details: err.message });
-  }
-});
-
-// Listar colecciones
-app.get('/db', (req, res) => {
-  if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos, intenta en un momento." });
-  const collections = Object.keys(memoryStore.collections);
-  res.json({ collections });
 });
 
 // Obtener Schema Analyzer de una colección
-app.get('/db/:collection/schema', (req, res) => {
-  const col = req.params.collection;
-  const data = memoryStore.collections[col] || [];
+app.get('/db/:database/:collection/schema', (req, res) => {
+  const dbName = req.params.database;
+  const colName = req.params.collection;
+
+  if (!memoryStore.databases[dbName] || !memoryStore.databases[dbName][colName]) {
+    return res.json({ database: dbName, collection: colName, totalRecords: 0, fields: [] });
+  }
+
+  const data = memoryStore.databases[dbName][colName];
   
   const schema = {};
   data.forEach(item => {
@@ -294,22 +329,22 @@ app.get('/db/:collection/schema', (req, res) => {
     sample: field.sampleValue
   }));
 
-  res.json({ collection: col, totalRecords: data.length, fields: schemaArray });
+  res.json({ database: dbName, collection: colName, totalRecords: data.length, fields: schemaArray });
 });
 
 // Inserción Masiva (Batch Import)
-app.post('/db/:collection/batch', (req, res) => {
+app.post('/db/:database/:collection/batch', (req, res) => {
   if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos." });
-  const col = req.params.collection;
+  const dbName = req.params.database;
+  const colName = req.params.collection;
   const records = Array.isArray(req.body) ? req.body : req.body.records;
 
   if (!Array.isArray(records)) {
     return res.status(400).json({ error: 'Se esperaba un arreglo de objetos.' });
   }
 
-  if (!memoryStore.collections[col]) {
-    memoryStore.collections[col] = [];
-  }
+  if (!memoryStore.databases[dbName]) memoryStore.databases[dbName] = {};
+  if (!memoryStore.databases[dbName][colName]) memoryStore.databases[dbName][colName] = [];
 
   const now = new Date().toISOString();
   const createdRecords = records.map((item, idx) => ({
@@ -318,24 +353,30 @@ app.post('/db/:collection/batch', (req, res) => {
     _updatedAt: now
   }));
 
-  memoryStore.collections[col].push(...createdRecords);
-  syncCollectionToDrive(col, memoryStore.collections[col]);
+  memoryStore.databases[dbName][colName].push(...createdRecords);
+  syncCollectionToDrive(dbName, colName, memoryStore.databases[dbName][colName]);
+  notifyClients(dbName, colName, 'batch_insert', createdRecords);
 
   res.status(201).json({ 
-    message: `${createdRecords.length} registros insertados masivamente y sincronizados.`,
+    message: `${createdRecords.length} registros insertados masivamente.`,
     insertedCount: createdRecords.length
   });
 });
 
 // Obtener datos de una colección con Búsqueda, Filtro y Paginación
-app.get('/db/:collection', (req, res) => {
+app.get('/db/:database/:collection', (req, res) => {
   if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos, intenta en un momento." });
   
-  const col = req.params.collection;
-  let data = memoryStore.collections[col] || [];
+  const dbName = req.params.database;
+  const colName = req.params.collection;
 
-  // Búsqueda de texto libre en cualquier campo
-  const { search, limit, page, sort, order } = req.query;
+  if (!memoryStore.databases[dbName]) {
+      return res.json({ database: dbName, collection: colName, total: 0, data: [] });
+  }
+
+  let data = memoryStore.databases[dbName][colName] || [];
+
+  const { search, limit, page, sort, order, ...filters } = req.query;
 
   if (search) {
     const q = search.toLowerCase();
@@ -344,7 +385,32 @@ app.get('/db/:collection', (req, res) => {
     );
   }
 
-  // Ordenamiento
+  if (Object.keys(filters).length > 0) {
+    data = data.filter(record => {
+      let isMatch = true;
+      for (const [key, rawValue] of Object.entries(filters)) {
+        try {
+          const value = typeof rawValue === 'string' && rawValue.startsWith('{') ? JSON.parse(rawValue) : rawValue;
+          
+          if (typeof value === 'object' && value !== null) {
+            if (value.$eq !== undefined && record[key] != value.$eq) isMatch = false;
+            if (value.$ne !== undefined && record[key] == value.$ne) isMatch = false;
+            if (value.$gt !== undefined && record[key] <= value.$gt) isMatch = false;
+            if (value.$lt !== undefined && record[key] >= value.$lt) isMatch = false;
+            if (value.$gte !== undefined && record[key] < value.$gte) isMatch = false;
+            if (value.$lte !== undefined && record[key] > value.$lte) isMatch = false;
+            if (value.$in && Array.isArray(value.$in) && !value.$in.includes(record[key])) isMatch = false;
+          } else {
+             if (record[key] != value) isMatch = false;
+          }
+        } catch(e) {
+          if (record[key] != rawValue) isMatch = false;
+        }
+      }
+      return isMatch;
+    });
+  }
+
   if (sort) {
     const isDesc = order === 'desc';
     data = [...data].sort((a, b) => {
@@ -356,7 +422,6 @@ app.get('/db/:collection', (req, res) => {
     });
   }
 
-  // Paginación opcional
   if (limit) {
     const lim = parseInt(limit, 10) || 50;
     const pg = parseInt(page, 10) || 1;
@@ -364,7 +429,8 @@ app.get('/db/:collection', (req, res) => {
     const paginated = data.slice(startIdx, startIdx + lim);
 
     return res.json({
-      collection: col,
+      database: dbName,
+      collection: colName,
       total: data.length,
       page: pg,
       limit: lim,
@@ -373,103 +439,103 @@ app.get('/db/:collection', (req, res) => {
     });
   }
 
-  res.json({ collection: col, total: data.length, data: data });
+  res.json({ database: dbName, collection: colName, total: data.length, data: data });
 });
 
 // Inserción individual
-app.post('/db/:collection', (req, res) => {
+app.post('/db/:database/:collection', (req, res) => {
   if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos, intenta en un momento." });
 
-  const col = req.params.collection;
+  const dbName = req.params.database;
+  const colName = req.params.collection;
   const payload = req.body;
 
-  if (!memoryStore.collections[col]) {
-    memoryStore.collections[col] = [];
-  }
+  if (!memoryStore.databases[dbName]) memoryStore.databases[dbName] = {};
+  if (!memoryStore.databases[dbName][colName]) memoryStore.databases[dbName][colName] = [];
 
   const id = Date.now().toString();
   const record = { _id: id, ...payload, _updatedAt: new Date().toISOString() };
   
-  memoryStore.collections[col].push(record);
+  memoryStore.databases[dbName][colName].push(record);
 
-  syncCollectionToDrive(col, memoryStore.collections[col]);
-  console.log(`[VFS Sync Triggered] Creando registro en Drive para la colección: ${col}`);
+  syncCollectionToDrive(dbName, colName, memoryStore.databases[dbName][colName]);
+  notifyClients(dbName, colName, 'insert', record);
 
-  res.status(201).json({ message: 'Dato guardado en caché local y sincronización a Drive iniciada', record: record });
+  res.status(201).json({ message: 'Dato guardado localmente y sinc en Drive iniciada', record: record });
 });
 
-// Ruta para actualizar un dato por ID (PUT)
-app.put('/db/:collection/:id', (req, res) => {
+// Actualizar
+app.put('/db/:database/:collection/:id', (req, res) => {
   if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos." });
 
-  const col = req.params.collection;
+  const dbName = req.params.database;
+  const colName = req.params.collection;
   const id = req.params.id;
   const payload = req.body;
 
-  if (!memoryStore.collections[col]) {
+  if (!memoryStore.databases[dbName] || !memoryStore.databases[dbName][colName]) {
     return res.status(404).json({ error: "Colección no encontrada." });
   }
 
-  const index = memoryStore.collections[col].findIndex(item => item._id === id);
+  const index = memoryStore.databases[dbName][colName].findIndex(item => item._id === id);
   if (index === -1) {
     return res.status(404).json({ error: "Registro no encontrado." });
   }
 
-  memoryStore.collections[col][index] = { 
-    ...memoryStore.collections[col][index], 
+  memoryStore.databases[dbName][colName][index] = { 
+    ...memoryStore.databases[dbName][colName][index], 
     ...payload, 
     _id: id, 
     _updatedAt: new Date().toISOString() 
   };
 
-  syncCollectionToDrive(col, memoryStore.collections[col]);
-  console.log(`[VFS Sync Triggered] Actualizando registro en Drive para la colección: ${col}`);
+  syncCollectionToDrive(dbName, colName, memoryStore.databases[dbName][colName]);
+  notifyClients(dbName, colName, 'update', memoryStore.databases[dbName][colName][index]);
 
-  res.json({ message: 'Dato actualizado', record: memoryStore.collections[col][index] });
+  res.json({ message: 'Dato actualizado', record: memoryStore.databases[dbName][colName][index] });
 });
 
-// Ruta para borrar un dato por ID (DELETE)
-app.delete('/db/:collection/:id', (req, res) => {
+// Borrar
+app.delete('/db/:database/:collection/:id', (req, res) => {
   if (memoryStore.status !== "active") return res.status(503).json({ error: "Servidor restaurando datos." });
 
-  const col = req.params.collection;
+  const dbName = req.params.database;
+  const colName = req.params.collection;
   const id = req.params.id;
 
-  if (!memoryStore.collections[col]) {
+  if (!memoryStore.databases[dbName] || !memoryStore.databases[dbName][colName]) {
     return res.status(404).json({ error: "Colección no encontrada." });
   }
 
-  const initialLength = memoryStore.collections[col].length;
-  memoryStore.collections[col] = memoryStore.collections[col].filter(item => item._id !== id);
+  const initialLength = memoryStore.databases[dbName][colName].length;
+  memoryStore.databases[dbName][colName] = memoryStore.databases[dbName][colName].filter(item => item._id !== id);
 
-  if (memoryStore.collections[col].length === initialLength) {
+  if (memoryStore.databases[dbName][colName].length === initialLength) {
     return res.status(404).json({ error: "Registro no encontrado." });
   }
 
-  syncCollectionToDrive(col, memoryStore.collections[col]);
-  console.log(`[VFS Sync Triggered] Borrando registro en Drive para la colección: ${col}`);
+  syncCollectionToDrive(dbName, colName, memoryStore.databases[dbName][colName]);
+  notifyClients(dbName, colName, 'delete', { _id: id });
 
   res.json({ message: 'Dato eliminado exitosamente' });
 });
 
-// Fallback para SPA (Single Page Application)
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 function startServer() {
-  app.listen(PORT, async () => {
+  server.listen(PORT, async () => {
     console.log(`🚀 NexusDrive Core iniciado en http://localhost:${PORT}`);
     console.log(`🔑 Comprobando conexión con Google Drive...`);
     try {
       await authorize();
-      console.log(`✅ Conectado a Google Drive exitosamente. Restaurando base de datos...`);
+      console.log(`✅ Conectado a Google Drive exitosamente. Restaurando bases de datos (Multi-Tenant)...`);
       
-      // Restaurar desde la nube
-      memoryStore.collections = await restoreDatabaseFromDrive();
+      memoryStore.databases = await restoreDatabaseFromDrive();
       memoryStore.status = "active";
       
-      console.log(`✨ Servidor Inmortal listo y operando en Memoria RAM.`);
+      console.log(`✨ Servidor Inmortal listo y operando en Memoria RAM con múltiples bases de datos.`);
     } catch (err) {
       console.error(`❌ Error fatal al iniciar:`, err);
     }
@@ -478,7 +544,6 @@ function startServer() {
 
 module.exports = { startServer };
 
-// Iniciar servidor si se ejecuta directamente (ej. Render o node server.js)
 if (require.main === module) {
   startServer();
 }

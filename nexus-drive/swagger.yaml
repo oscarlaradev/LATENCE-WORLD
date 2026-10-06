@@ -1,0 +1,123 @@
+openapi: 3.0.0
+info:
+  title: NexusDrive API
+  description: Enterprise Cloud Database Suite with Google Drive VFS (Multi-Tenant)
+  version: 2.0.0
+servers:
+  - url: http://localhost:3000
+    description: Servidor Local
+paths:
+  /db:
+    get:
+      summary: Listar todas las bases de datos
+      responses:
+        '200':
+          description: OK
+  /db/{database}:
+    get:
+      summary: Listar colecciones de una base de datos
+      parameters:
+        - name: database
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /db/{database}/{collection}:
+    get:
+      summary: Obtener datos de una colección
+      parameters:
+        - name: database
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Insertar un dato en la colección
+      parameters:
+        - name: database
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Creado
+  /db/{database}/{collection}/{id}:
+    put:
+      summary: Actualizar un dato
+      parameters:
+        - name: database
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Actualizado
+    delete:
+      summary: Borrar un dato
+      parameters:
+        - name: database
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Borrado

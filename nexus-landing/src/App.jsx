@@ -150,21 +150,31 @@ function App() {
               <p>Interact with your database from any language, frontend, or backend. The core runs locally or on your deployed server, acting as the high-speed bridge to Google Drive.</p>
               
               <div className="code-block" style={{ marginTop: '1rem' }}>
-                <div className="code-line"><span className="code-comment">// Query with search, pagination & sort</span></div>
-                <div className="code-line"><span className="code-command">GET /db/:collection?search=query&amp;limit=25</span></div>
+                <div className="code-line"><span className="code-comment">// New: Multi-Tenant Architecture</span></div>
+                <div className="code-line"><span className="code-command">GET /db/:database/:collection</span></div>
                 
-                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Insert a document</span></div>
-                <div className="code-line"><span className="code-command">POST /db/:collection</span></div>
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Query with Advanced Filtering ($gt, $lt, $in)</span></div>
+                <div className="code-line"><span className="code-command">GET /db/my_client/users?age={"{"}"$gt": 18{"}"}</span></div>
+                
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Insert a document into a specific database</span></div>
+                <div className="code-line"><span className="code-command">POST /db/my_client/users</span></div>
                 <div className="code-line"><span className="code-command">Header: x-api-key: YOUR_KEY</span></div>
                 
-                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Bulk batch insertion</span></div>
-                <div className="code-line"><span className="code-command">POST /db/:collection/batch</span></div>
-
-                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Dynamic schema analyzer</span></div>
-                <div className="code-line"><span className="code-command">GET /db/:collection/schema</span></div>
-
-                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Full snapshot backup</span></div>
-                <div className="code-line"><span className="code-command">GET /api/backup</span></div>
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// Interactive Swagger UI</span></div>
+                <div className="code-line"><span className="code-command">GET /docs</span></div>
+              </div>
+            </div>
+            
+            <div className="doc-section reveal" style={{ marginTop: '2rem' }}>
+              <h3>🔌 NexusDrive Client SDK</h3>
+              <p>Connect any Frontend or Node.js project to your databases with a single line of code.</p>
+              <div className="code-block" style={{ marginTop: '1rem' }}>
+                <div className="code-line"><span className="code-comment">// 1. Install</span></div>
+                <div className="code-line"><span className="code-command">npm install nexus-drive-client</span></div>
+                
+                <div className="code-line" style={{ marginTop: '1rem' }}><span className="code-comment">// 2. Initialize & Query</span></div>
+                <div className="code-line"><span className="code-command">const db = new Nexus({"{url: 'http://localhost:3000'}"}).database('my_client');</span></div>
+                <div className="code-line"><span className="code-command">const users = await db.collection('users').find();</span></div>
               </div>
             </div>
           </div>
@@ -181,9 +191,21 @@ function App() {
               <div className="code-block" style={{ padding: '1rem' }}>
                 <span className="code-comment">When the host inevitably restarts:</span><br/><br/>
                 <span style={{ color: 'var(--text-primary)' }}>1. NexusDrive boots</span><br/>
-                <span style={{ color: 'var(--text-primary)' }}>2. Queries Drive for existing schema</span><br/>
+                <span style={{ color: 'var(--text-primary)' }}>2. Queries Drive for all Database Folders</span><br/>
                 <span style={{ color: 'var(--text-primary)' }}>3. Rebuilds In-Memory RAM state</span><br/>
                 <span style={{ color: 'var(--accent)' }}>4. Zero Data Loss Achieved.</span>
+              </div>
+            </div>
+
+            <div className="doc-section reveal">
+              <h3>⚡ Real-Time WebSockets Engine</h3>
+              <p>Listen to live changes across any database or collection seamlessly via the SDK.</p>
+              <div className="code-block" style={{ padding: '1rem' }}>
+                <span className="code-comment">// Listen for live updates</span><br/>
+                <span style={{ color: 'var(--text-primary)' }}>const db = nexus.database('my_client');</span><br/>
+                <span style={{ color: 'var(--text-primary)' }}>db.collection('users').onSnapshot((change) =&gt; {"{"}</span><br/>
+                <span style={{ color: 'var(--accent)', marginLeft: '1rem' }}>console.log("Live Event:", change);</span><br/>
+                <span style={{ color: 'var(--text-primary)' }}>{"}"});</span>
               </div>
             </div>
 
