@@ -21,6 +21,10 @@ export default function App() {
   const [showKeyInSettings, setShowKeyInSettings] = useState(false);
 
   // Core Data States
+  const [databases, setDatabases] = useState([]);
+  const [activeDatabase, setActiveDatabase] = useState('');
+  const [showNewDatabaseModal, setShowNewDatabaseModal] = useState(false);
+  const [newDatabaseName, setNewDatabaseName] = useState('');
   const [collections, setCollections] = useState([]);
   const [activeCollection, setActiveCollection] = useState('');
   const [records, setRecords] = useState([]);
@@ -138,15 +142,33 @@ export default function App() {
     }
   };
 
+  const fetchDatabases = async () => {
+    try {
+      const res = await apiFetch('/db');
+      const data = await res.json();
+      const dbs = data.databases || [];
+      setDatabases(dbs);
+      if (dbs.length > 0 && !activeDatabase) {
+        setActiveDatabase(dbs[0]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchCollections = async () => {
+    if (!activeDatabase) return;
     try {
       setLoading(true);
-      const res = await apiFetch('/db');
+      const res = await apiFetch(`/db/${activeDatabase}`);
       const data = await res.json();
       const cols = data.collections || [];
       setCollections(cols);
       if (cols.length > 0 && (!activeCollection || !cols.includes(activeCollection))) {
         setActiveCollection(cols[0]);
+      } else if (cols.length === 0) {
+        setActiveCollection('');
+        setRecords([]);
       }
     } catch (e) {
       console.error(e);
@@ -160,7 +182,7 @@ export default function App() {
     try {
       setLoading(true);
       const queryParam = recordSearch ? `?search=${encodeURIComponent(recordSearch)}` : '';
-      const res = await apiFetch(`/db/${col}${queryParam}`);
+      const res = await apiFetch(`/db/${activeDatabase}/${col}${queryParam}`);
       const data = await res.json();
       setRecords(data.data || []);
     } catch (e) {
@@ -210,9 +232,9 @@ export default function App() {
       if (activeTab === 'dashboard') {
         fetchConfigInfo();
         fetchTelemetry();
-        fetchCollections();
+        fetchDatabases();
       } else if (activeTab === 'colecciones') {
-        fetchCollections();
+        fetchDatabases();
       } else if (activeTab === 'almacenamiento') {
         fetchStorageInfo();
       } else if (activeTab === 'configuracion') {
@@ -221,6 +243,8 @@ export default function App() {
       }
     }
   }, [status, activeTab, isProtected, isAuthenticated, isCheckingSecurity]);
+
+  useEffect(() => { if (activeDatabase && (!isProtected || isAuthenticated)) { fetchCollections(); } }, [activeDatabase]);
 
   useEffect(() => {
     if (activeTab === 'colecciones' && activeCollection && (!isProtected || isAuthenticated)) {
@@ -254,13 +278,13 @@ export default function App() {
     try {
       const parsedData = JSON.parse(recordFormData);
       if (isEditingRecord) {
-        await apiFetch(`/db/${activeCollection}/${currentRecordId}`, {
+        await apiFetch(`/db/${activeDatabase}/${activeCollection}/${currentRecordId}`, {
           method: 'PUT',
           body: JSON.stringify(parsedData)
         });
         showToast(`Registro [${currentRecordId}] actualizado.`);
       } else {
-        await apiFetch(`/db/${activeCollection}`, {
+        await apiFetch(`/db/${activeDatabase}/${activeCollection}`, {
           method: 'POST',
           body: JSON.stringify(parsedData)
         });
@@ -277,7 +301,7 @@ export default function App() {
   const handleDeleteRecord = async (id) => {
     if (!window.confirm(`¿Estás seguro de eliminar el registro ID ${id}?`)) return;
     try {
-      await apiFetch(`/db/${activeCollection}/${id}`, { method: 'DELETE' });
+      await apiFetch(`/db/${activeDatabase}/${activeCollection}/${id}`, { method: 'DELETE' });
       showToast(`Registro [${id}] eliminado.`);
       fetchRecords(activeCollection);
       fetchConfigInfo();
@@ -295,11 +319,32 @@ export default function App() {
   };
 
   // Collection Operations
+  const handleCreateDatabase = async (e) => {
+    e.preventDefault();
+    if (!newDatabaseName.trim()) return;
+    try {
+      const res = await apiFetch(`/api/${newDatabaseName.trim()}/collections`, {
+        method: 'POST',
+        body: JSON.stringify({ name: 'default_collection' })
+      });
+      if (res.ok) {
+        showToast('Base de datos inicializada.');
+        setNewDatabaseName('');
+        setShowNewDatabaseModal(false);
+        await fetchDatabases();
+        setActiveDatabase(newDatabaseName.trim());
+      }
+    } catch(err) {
+      alert(err.message);
+    }
+  };
+
   const handleCreateCollection = async (e) => {
     e.preventDefault();
     if (!newCollectionName.trim()) return;
     try {
-      const res = await apiFetch('/api/collections', {
+      if (!activeDatabase) { alert('Selecciona una base de datos primero.'); return; }
+      const res = await apiFetch(`/api/${activeDatabase}/collections`, {
         method: 'POST',
         body: JSON.stringify({ name: newCollectionName.trim() })
       });
@@ -322,7 +367,7 @@ export default function App() {
       return;
     }
     try {
-      const res = await apiFetch(`/api/collections/${activeCollection}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/${activeDatabase}/collections/${activeCollection}`, { method: 'DELETE' });
       const data = await res.json();
       showToast(data.message);
       setShowDropModal(false);
@@ -337,7 +382,7 @@ export default function App() {
     e.preventDefault();
     try {
       const parsed = JSON.parse(batchJsonData);
-      const res = await apiFetch(`/db/${activeCollection}/batch`, {
+      const res = await apiFetch(`/db/${activeDatabase}/${activeCollection}/batch`, {
         method: 'POST',
         body: JSON.stringify(parsed)
       });
@@ -353,7 +398,7 @@ export default function App() {
 
   const handleInspectSchema = async () => {
     try {
-      const res = await apiFetch(`/db/${activeCollection}/schema`);
+      const res = await apiFetch(`/db/${activeDatabase}/${activeCollection}/schema`);
       const data = await res.json();
       setSchemaData(data);
       setShowSchemaModal(true);
