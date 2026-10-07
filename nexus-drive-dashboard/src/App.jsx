@@ -931,6 +931,30 @@ export default function App() {
               <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '20px' }}>
                 {/* Left Collections List */}
                 <div className="card" style={{ padding: '16px', height: 'fit-content' }}>
+                  <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Base de Datos Actual
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select 
+                        className="input-dark" 
+                        style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }}
+                        value={activeDatabase}
+                        onChange={(e) => setActiveDatabase(e.target.value)}
+                      >
+                        {databases.length === 0 && <option value="">---</option>}
+                        {databases.map(db => <option key={db} value={db}>{db}</option>)}
+                      </select>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: '0 10px' }}
+                        onClick={() => setShowNewDatabaseModal(true)}
+                        title="Nueva Base de Datos"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                       Colecciones ({collections.length})
